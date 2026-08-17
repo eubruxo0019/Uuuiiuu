@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jogo da Memória · Multiplayer</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(145deg, #1a2634 0%, #0f141c 100%);
+            padding: 12px;
+        }
+        .game-wrapper {
+            max-width: 820px;
+            width: 100%;
+            background: rgba(30, 40, 55, 0.75);
+            backdrop-filter: blur(6px);
+            border-radius: 48px;
+            padding: 24px 20px 28px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7), 0 0 0 2px #3d4c66 inset;
+        }
+        h1 {
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 2px;
+            color: #d6e6ff;
+            text-shadow: 0 4px 8px #0a0e14;
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+        .multiplayer-panel {
+            background: #1e2835;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #3f526b;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .mp-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .mp-input {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 16px;
+            border-radius: 30px;
+            border: 2px solid #3f526b;
+            background: #121a24;
+            color: #d6e6ff;
+            font-size: 0.95rem;
+            outline: none;
+            transition: 0.2s;
+        }
+        .mp-input:focus {
+            border-color: #f5c542;
+        }
+        .mp-btn {
+            padding: 10px 22px;
+            border-radius: 30px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.08s linear;
+            background: #2a4a6a;
+            color: #c8e2ff;
+            border: 1px solid #4a7a9a;
+            box-shadow: 0 4px 0 #1a2f44;
+        }
+        .mp-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #1a2f44;
+        }
+        .mp-btn.primary {
+            background: #f5c542;
+            color: #1f2a36;
+            border-color: #fad87a;
+            box-shadow: 0 4px 0 #b5831e;
+        }
+        .mp-btn.success {
+            background: #4caf50;
+            color: #fff;
+            border-color: #81c784;
+            box-shadow: 0 4px 0 #2e7d32;
+        }
+        .mp-btn.danger {
+            background: #e74c3c;
+            color: #fff;
+            border-color: #f1948a;
+            box-shadow: 0 4px 0 #922b21;
+        }
+        .mp-status {
+            text-align: center;
+            color: #bfd5f0;
+            font-size: 0.9rem;
+            padding: 6px;
+            border-radius: 12px;
+            background: #121a24;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mp-status .highlight {
+            color: #f5c542;
+            font-weight: 600;
+        }
+        .level-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px 10px;
+            margin-bottom: 14px;
+        }
+        .level-btn {
+            background: #293544;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #b0c8e6;
+            box-shadow: 0 4px 0 #0f151e;
+            cursor: pointer;
+            transition: all 0.07s ease;
+            border: 1px solid #40536b;
+            flex: 1 0 auto;
+            max-width: 100px;
+        }
+        .level-btn.active {
+            background: #f5c542;
+            color: #1f2a36;
+            box-shadow: 0 4px 0 #b5831e;
+            border-color: #fad87a;
+            transform: scale(0.97);
+        }
+        .level-btn:active {
+            transform: scale(0.93);
+        }
+        .status-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e2835;
+            padding: 6px 16px;
+            border-radius: 60px;
+            margin-bottom: 14px;
+            color: #bfd5f0;
+            font-weight: 500;
+            border: 1px solid #3f526b;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            font-size: 0.85rem;
+        }
+        .status-panel span {
+            background: #121a24;
+            padding: 3px 14px;
+            border-radius: 40px;
+        }
+        .online-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #121a24;
+            padding: 3px 14px 3px 10px;
+            border-radius: 40px;
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+        .online-dot.offline {
+            background: #f44336;
+            animation: none;
+        }
+        .online-dot.connecting {
+            background: #f39c12;
+            animation: pulse 0.8s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .game-grid {
+            display: grid;
+            gap: 10px;
+            justify-content: center;
+            margin: 10px 0 16px;
+        }
+        .grid-4x4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-4x6 { grid-template-columns: repeat(4, 1fr); }
+        .grid-4x8 { grid-template-columns: repeat(4, 1fr); }
+        
+        .card {
+            aspect-ratio: 1 / 1;
+            background: linear-gradient(145deg, #2e4057, #1c293a);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #f0f8ff;
+            box-shadow: 0 6px 0 #0e141e, 0 6px 12px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: 0.12s ease-in-out;
+            border: 1px solid #58718d;
+            text-shadow: 0 2px 4px #00000055;
+            user-select: none;
+            position: relative;
+            min-width: 40px;
+            min-height: 40px;
+        }
+        .card.flipped {
+            background: #e8f0fa;
+            color: #1a2737;
+            border-color: #b9d0ec;
+            box-shadow: 0 4px 0 #768aa5, 0 6px 12px #00000055;
+            transform: scale(0.97);
+        }
+        .card.matched {
+            background: #2b7a4b;
+            border-color: #8bcba0;
+            color: #e5ffe6;
+            box-shadow: 0 4px 0 #1b4d30;
+            cursor: default;
+            opacity: 0.7;
+            transform: scale(0.94);
+        }
+        .card:active:not(.flipped):not(.matched) {
+            transform: scale(0.92);
+        }
+        .card .card-owner {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 0.4rem;
+            opacity: 0.5;
+            color: #fff;
+            background: rgba(0,0,0,0.4);
+            padding: 1px 5px;
+            border-radius: 8px;
+        }
+        .bottom-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 4px;
+        }
+        .reset-btn {
+            background: #d4a03a;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #121c26;
+            box-shadow: 0 5px 0 #7a5d1e;
+            cursor: pointer;
+            transition: 0.08s linear;
+            border: 1px solid #fad074;
+            letter-spacing: 1px;
+        }
+        .reset-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #7a5d1e;
+        }
+        .turn-indicator {
+            background: #1e2835;
+            padding: 4px 18px;
+            border-radius: 30px;
+            border: 1px solid #3f526b;
+            color: #bfd5f0;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .turn-indicator .turn-player {
+            color: #f5c542;
+        }
+        .pairs-info {
+            background: #1e2835;
+            padding: 4px 18px;
+            border-radius: 30px;
+            border: 1px solid #3f526b;
+            color: #bfd5f0;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 600px) {
+            .grid-4x4 { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+            .grid-4x6 { grid-template-columns: repeat(4, 1fr); gap: 7px; }
+            .grid-4x8 { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+            .card { font-size: 1.6rem; border-radius: 12px; min-width: 30px; min-height: 30px; }
+            .level-btn { font-size: 0.75rem; padding: 5px 10px; max-width: 80px; }
+            .mp-input { font-size: 0.8rem; padding: 8px 12px; min-width: 100px; }
+            .mp-btn { font-size: 0.8rem; padding: 8px 14px; }
+            .game-wrapper { padding: 16px 12px 20px; border-radius: 32px; }
+            h1 { font-size: 1.4rem; }
+        }
+        @media (max-width: 400px) {
+            .grid-4x8 { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+            .grid-4x6 { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+            .card { font-size: 1.2rem; border-radius: 8px; min-width: 25px; min-height: 25px; box-shadow: 0 3px 0 #0e141e; }
+        }
+        .hidden { display: none !important; }
+        .copy-btn {
+            background: #2a4a6a;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #c8e2ff;
+            cursor: pointer;
+            font-size: 0.8rem;
+            border: 1px solid #4a7a9a;
+        }
+        .copy-btn:active { transform: scale(0.95); }
+        
+        .share-section {
+            background: #121a24;
+            border-radius: 12px;
+            padding: 10px 16px;
+            margin-top: 4px;
+            border: 1px solid #2a3f55;
+        }
+        .share-section p {
+            color: #8aa3c0;
+            font-size: 0.8rem;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+        .share-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .share-btn {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .share-btn:active { transform: scale(0.95); }
+        .share-btn.whatsapp { background: #25D366; color: #fff; }
+        .share-btn.telegram { background: #0088cc; color: #fff; }
+        .share-btn.copy { background: #4a6a8a; color: #fff; }
+        .share-btn.link { background: #f5c542; color: #1f2a36; }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <h1>🧠 MEMÓRIA · MULTIPLAYER</h1>
+
+    <!-- Painel Multiplayer -->
+    <div class="multiplayer-panel">
+        <div class="mp-row">
+            <input class="mp-input" id="myIdDisplay" readonly placeholder="Seu ID" value="Carregando...">
+            <button class="copy-btn" id="copyIdBtn">📋 Copiar</button>
+        </div>
+        <div class="mp-row">
+            <input class="mp-input" id="friendIdInput" placeholder="ID do amigo para conectar">
+            <button class="mp-btn primary" id="connectBtn">🔗 Conectar</button>
+            <button class="mp-btn danger hidden" id="disconnectBtn">❌ Desconectar</button>
+        </div>
+        <div class="mp-status" id="connectionStatus">
+            ⚡ Aguardando conexão...
+        </div>
+        <div class="mp-row" style="justify-content:center; gap:8px;">
+            <span style="color:#bfd5f0;font-size:0.85rem;">👥 Jogadores:</span>
+            <span id="playersList" style="color:#f5c542;font-weight:600;">Você</span>
+        </div>
+        
+        <!-- Seção de Compartilhamento -->
+        <div class="share-section">
+            <p>📱 Compartilhe este link com seu amigo:</p>
+            <div class="share-buttons">
+                <button class="share-btn whatsapp" onclick="shareLink('whatsapp')">💬 WhatsApp</button>
+                <button class="share-btn telegram" onclick="shareLink('telegram')">✈️ Telegram</button>
+                <button class="share-btn copy" onclick="copyPageLink()">📋 Copiar Link</button>
+                <button class="share-btn link" onclick="shareLink('native')">🔗 Compartilhar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="level-bar">
+        <button class="level-btn" data-level="facil">🌱 Fácil</button>
+        <button class="level-btn" data-level="medio">🍂 Médio</button>
+        <button class="level-btn" data-level="dificil">🔥 Difícil</button>
+        <button class="level-btn" data-level="impossivel">💀 Impossível</button>
+        <button class="level-btn active" data-level="extremo">⚡ Extremo</button>
+    </div>
+
+    <div class="status-panel">
+        <span class="pairs-info">🎯 Pares: <strong id="pairs-matched">0</strong>/<span id="total-pairs">8</span></span>
+        <span>⏱️ <span id="timer-display">00</span>s</span>
+        <span id="level-indicator">Extremo</span>
+        <div class="online-status">
+            <span class="online-dot offline" id="onlineDot"></span>
+            <span id="onlineLabel">Offline</span>
+        </div>
+    </div>
+
+    <div class="game-grid grid-4x4" id="grid"></div>
+
+    <div class="bottom-row">
+        <div class="turn-indicator" id="turnIndicator">
+            🎮 Vez de: <span class="turn-player" id="turnPlayer">Você</span>
+        </div>
+        <button class="reset-btn" id="resetGameBtn">⟳ Nova</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ========== CONFIG ==========
+        const ICONS_BASE = ['🍎','🍌','🍇','🍓','🍉','🍒','🍑','🥝','🍊','🍋','🍈','🍐','🥭','🍍','🥥','🫐'];
+        
+        const LEVEL_CONFIG = {
+            facil:    { label: 'Fácil',    pairs: 8,  cols: 4, gridClass: 'grid-4x4', shuffleInterval: null, moveInterval: null },
+            medio:    { label: 'Médio',    pairs: 8,  cols: 4, gridClass: 'grid-4x4', shuffleInterval: null, moveInterval: null },
+            dificil:  { label: 'Difícil',  pairs: 8,  cols: 4, gridClass: 'grid-4x4', shuffleInterval: null, moveInterval: null },
+            impossivel: { label: 'Impossível', pairs: 12, cols: 4, gridClass: 'grid-4x6', shuffleInterval: 25000, moveInterval: null },
+            extremo:  { label: 'Extremo',  pairs: 16, cols: 4, gridClass: 'grid-4x8', shuffleInterval: null, moveInterval: 10000 }
+        };
+
+        let currentLevel = 'extremo';
+        let currentPairs = 16;
+        let cards = [];
+        let flippedIndices = [];
+        let matchedPairs = 0;
+        let lockBoard = false;
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let shuffleTimeout = null;
+        let moveTimeout = null;
+        let gameFinished = false;
+        let myTurn = true;
+        let gameMode = 'single';
+
+        let peer = null;
+        let connection = null;
+        let myId = '';
+        let isConnected = false;
+        let isHost = false;
+        let friendId = '';
+
+        // DOM
+        const gridEl = document.getElementById('grid');
+        const pairsSpan = document.getElementById('pairs-matched');
+        const totalPairsSpan = document.getElementById('total-pairs');
+        const timerSpan = document.getElementById('timer-display');
+        const levelIndicator = document.getElementById('level-indicator');
+        const resetBtn = document.getElementById('resetGameBtn');
+        const myIdDisplay = document.getElementById('myIdDisplay');
+        const friendIdInput = document.getElementById('friendIdInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const onlineDot = document.getElementById('onlineDot');
+        const onlineLabel = document.getElementById('onlineLabel');
+        const turnPlayer = document.getElementById('turnPlayer');
+        const playersList = document.getElementById('playersList');
+        const copyIdBtn = document.getElementById('copyIdBtn');
+
+        // ========== FUNÇÕES DE COMPARTILHAMENTO ==========
+        function getPageLink() {
+            return window.location.href;
+        }
+
+        window.copyPageLink = function() {
+            const link = getPageLink();
+            navigator.clipboard.writeText(link).then(() => {
+                showStatus('✅ Link copiado! Envie para seu amigo');
+                setTimeout(() => showStatus(`✅ Seu ID: ${myId}`), 2000);
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = link;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                textarea.remove();
+                showStatus('✅ Link copiado!');
+            });
+        };
+
+        window.shareLink = function(platform) {
+            const link = getPageLink();
+            const text = `🎮 Vamos jogar Memória Multiplayer! Meu ID é: ${myId}\n\nLink: ${link}`;
+            
+            if (platform === 'whatsapp') {
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            } else if (platform === 'telegram') {
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Vamos jogar Memória Multiplayer!')}`, '_blank');
+            } else if (platform === 'native') {
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Jogo da Memória Multiplayer',
+                        text: `Vamos jogar! Meu ID: ${myId}`,
+                        url: link
+                    }).catch(() => {});
+                } else {
+                    copyPageLink();
+                }
+            }
+        };
+
+        // ========== FUNÇÕES DO JOGO ==========
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function getIconsForLevel(pairs) {
+            const icons = [];
+            for (let i = 0; i < pairs; i++) {
+                icons.push(ICONS_BASE[i % ICONS_BASE.length]);
+            }
+            return icons;
+        }
+
+        function buildDeck(pairs) {
+            const icons = getIconsForLevel(pairs);
+            let deck = [];
+            for (let i = 0; i < pairs; i++) {
+                deck.push(icons[i], icons[i]);
+            }
+            return shuffleArray(deck);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        function startTimer() {
+            if (timerInterval) stopTimer();
+            timerSeconds = 0;
+            timerSpan.textContent = '00';
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                timerSpan.textContent = String(timerSeconds).padStart(2, '0');
+            }, 1000);
+        }
+
+        function clearLevelTimeouts() {
+            if (shuffleTimeout) { clearTimeout(shuffleTimeout); shuffleTimeout = null; }
+            if (moveTimeout) { clearTimeout(moveTimeout); moveTimeout = null; }
+        }
+
+        function moveCards() {
+            if (gameFinished || gameMode === 'multi') return;
+            let availableIndices = [];
+            for (let i = 0; i < cards.length; i++) {
+                if (!cards[i].matched) availableIndices.push(i);
+            }
+            if (availableIndices.length < 2) return;
+            let values = availableIndices.map(idx => cards[idx].value);
+            shuffleArray(values);
+            for (let i = 0; i < availableIndices.length; i++) {
+                cards[availableIndices[i]].value = values[i];
+            }
+            renderGrid();
+            const config = LEVEL_CONFIG[currentLevel];
+            if (currentLevel === 'extremo' && config.moveInterval && !gameFinished) {
+                if (moveTimeout) clearTimeout(moveTimeout);
+                moveTimeout = setTimeout(() => moveCards(), config.moveInterval);
+            }
+        }
+
+        function shuffleUnmatched() {
+            if (gameFinished || gameMode === 'multi') return;
+            let unmatchedIndices = [];
+            for (let i = 0; i < cards.length; i++) {
+                if (!cards[i].matched) unmatchedIndices.push(i);
+            }
+            if (unmatchedIndices.length < 2) return;
+            let values = unmatchedIndices.map(idx => cards[idx].value);
+            shuffleArray(values);
+            for (let i = 0; i < unmatchedIndices.length; i++) {
+                cards[unmatchedIndices[i]].value = values[i];
+            }
+            for (let i = 0; i < cards.length; i++) {
+                if (!cards[i].matched) cards[i].flipped = false;
+            }
+            flippedIndices = [];
+            lockBoard = false;
+            renderGrid();
+            const config = LEVEL_CONFIG[currentLevel];
+            if (currentLevel === 'impossivel' && config.shuffleInterval && !gameFinished) {
+                if (shuffleTimeout) clearTimeout(shuffleTimeout);
+                shuffleTimeout = setTimeout(() => shuffleUnmatched(), config.shuffleInterval);
+            }
+        }
+
+        function renderGrid() {
+            gridEl.innerHTML = '';
+            const totalCards = cards.length;
+            for (let i = 0; i < totalCards; i++) {
+                const card = cards[i];
+                const div = document.createElement('div');
+                div.className = 'card';
+                if (card.flipped) div.classList.add('flipped');
+                if (card.matched) div.classList.add('matched');
+                div.textContent = card.flipped || card.matched ? card.value : '❓';
+                div.dataset.index = i;
+                
+                if (gameMode === 'multi' && card.owner) {
+                    const ownerSpan = document.createElement('span');
+                    ownerSpan.className = 'card-owner';
+                    ownerSpan.textContent = card.owner === myId ? '👤' : '👥';
+                    div.appendChild(ownerSpan);
+                }
+                div.addEventListener('click', () => onCardClick(i));
+                gridEl.appendChild(div);
+            }
+            pairsSpan.textContent = matchedPairs;
+            totalPairsSpan.textContent = currentPairs;
+        }
+
+        function onCardClick(index) {
+            if (lockBoard || gameFinished) return;
+            
+            if (gameMode === 'multi') {
+                if (!myTurn) {
+                    showStatus('⏳ Aguarde sua vez!');
+                    return;
+                }
+                if (cards[index].owner && cards[index].owner !== myId) {
+                    showStatus('❌ Esta carta é do seu amigo!');
+                    return;
+                }
+            }
+
+            const card = cards[index];
+            if (card.flipped || card.matched) return;
+
+            card.flipped = true;
+            if (gameMode === 'multi') {
+                card.owner = myId;
+                if (connection) {
+                    connection.send({
+                        type: 'card_flip',
+                        index: index,
+                        player: myId
+                    });
+                }
+            }
+            flippedIndices.push(index);
+            renderGrid();
+
+            if (flippedIndices.length === 2) {
+                lockBoard = true;
+                const idx1 = flippedIndices[0];
+                const idx2 = flippedIndices[1];
+                const card1 = cards[idx1];
+                const card2 = cards[idx2];
+
+                if (card1.value === card2.value) {
+                    card1.matched = true;
+                    card2.matched = true;
+                    matchedPairs++;
+                    pairsSpan.textContent = matchedPairs;
+                    flippedIndices = [];
+                    lockBoard = false;
+                    renderGrid();
+
+                    if (gameMode === 'multi' && connection) {
+                        connection.send({
+                            type: 'pair_found',
+                            pairs: matchedPairs,
+                            player: myId
+                        });
+                    }
+
+                    if (matchedPairs === currentPairs) {
+                        gameFinished = true;
+                        stopTimer();
+                        clearLevelTimeouts();
+                        if (gameMode === 'multi' && connection) {
+                            connection.send({ type: 'game_finished', winner: myId, tempo: timerSeconds });
+                        }
+                        setTimeout(() => {
+                            alert(`🎉 ${gameMode === 'multi' ? 'Você' : ''} Ganhou! Tempo: ${timerSeconds}s`);
+                        }, 100);
+                    }
+                    
+                    if (gameMode === 'multi' && !gameFinished) {
+                        // Não alterna turno em acerto (jogador continua)
+                        showStatus('🎯 Continue!');
+                    }
+                } else {
+                    if (gameMode === 'multi') {
+                        setTimeout(() => {
+                            card1.flipped = false;
+                            card2.flipped = false;
+                            flippedIndices = [];
+                            lockBoard = false;
+                            renderGrid();
+                            myTurn = !myTurn;
+                            updateTurnUI();
+                            if (!myTurn) {
+                                showStatus('🤝 Vez do seu amigo!');
+                            } else {
+                                showStatus('🎯 Sua vez!');
+                            }
+                            if (connection) {
+                                connection.send({ type: 'turn_change', turn: myTurn ? myId : friendId });
+                            }
+                        }, 700);
+                    } else {
+                        setTimeout(() => {
+                            card1.flipped = false;
+                            card2.flipped = false;
+                            flippedIndices = [];
+                            lockBoard = false;
+                            renderGrid();
+                        }, 600);
+                    }
+                }
+            } else {
+                lockBoard = false;
+            }
+        }
+
+        function updateTurnUI() {
+            if (gameMode === 'multi') {
+                turnPlayer.textContent = myTurn ? 'Você' : 'Amigo';
+                turnPlayer.style.color = myTurn ? '#f5c542' : '#4fc3f7';
+            } else {
+                turnPlayer.textContent = 'Você';
+                turnPlayer.style.color = '#f5c542';
+            }
+        }
+
+        function showStatus(msg) {
+            connectionStatus.textContent = msg;
+        }
+
+        // ========== INICIALIZAR JOGO ==========
+        function initGame(levelKey) {
+            stopTimer();
+            clearLevelTimeouts();
+            gameFinished = false;
+            myTurn = true;
+
+            const config = LEVEL_CONFIG[levelKey];
+            currentPairs = config.pairs;
+            currentLevel = levelKey;
+
+            const deck = buildDeck(currentPairs);
+            cards = deck.map(value => ({ value, flipped: false, matched: false, owner: null }));
+            flippedIndices = [];
+            matchedPairs = 0;
+            lockBoard = false;
+
+            gridEl.className = 'game-grid ' + config.gridClass;
+            
+            levelIndicator.textContent = config.label;
+            renderGrid();
+            pairsSpan.textContent = '0';
+            totalPairsSpan.textContent = currentPairs;
+            startTimer();
+            updateTurnUI();
+
+            if (gameMode !== 'multi') {
+                if (levelKey === 'extremo' && config.moveInterval) {
+                    if (moveTimeout) clearTimeout(moveTimeout);
+                    moveTimeout = setTimeout(() => moveCards(), config.moveInterval);
+                } else if (levelKey === 'impossivel' && config.shuffleInterval) {
+                    if (shuffleTimeout) clearTimeout(shuffleTimeout);
+                    shuffleTimeout = setTimeout(() => shuffleUnmatched(), config.shuffleInterval);
+                }
+            }
+
+            document.querySelectorAll('.level-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.level === levelKey);
+            });
+        }
+
+        function resetGame() {
+            initGame(currentLevel);
+            if (gameMode === 'multi' && connection) {
+                connection.send({ type: 'reset_game' });
+            }
+        }
+
+        // ========== PEERJS - MODO MULTIPLAYER ==========
+        function initPeer() {
+            peer = new Peer(undefined, {
+                debug: 2,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (id) => {
+                myId = id;
+                myIdDisplay.value = id;
+                showStatus(`✅ Seu ID: ${id}`);
+                onlineDot.className = 'online-dot';
+                onlineLabel.textContent = 'Online';
+                connectBtn.disabled = false;
+            });
+
+            peer.on('connection', (conn) => {
+                conn.on('open', () => {
+                    handleConnection(conn, false);
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                showStatus('❌ Erro: ' + err.message);
+                onlineDot.className = 'online-dot offline';
+                onlineLabel.textContent = 'Offline';
+            });
+
+            peer.on('disconnected', () => {
+                showStatus('⚠️ Desconectado do servidor');
+                onlineDot.className = 'online-dot offline';
+                onlineLabel.textContent = 'Offline';
+            });
+        }
+
+        function handleConnection(conn, isInitiator) {
+            connection = conn;
+            isConnected = true;
+            isHost = isInitiator;
+            gameMode = 'multi';
+            
+            onlineDot.className = 'online-dot';
+            onlineLabel.textContent = 'Conectado';
+            connectBtn.classList.add('hidden');
+            disconnectBtn.classList.remove('hidden');
+            friendId = conn.peer;
+            showStatus(`🔗 Conectado a: ${friendId}`);
+            playersList.textContent = `Você + Amigo`;
+
+            conn.on('data', (data) => {
+                handleRemoteData(data);
+            });
+
+            conn.on('close', () => {
+                disconnectPeer();
+                showStatus('🔌 Conexão encerrada pelo amigo');
+            });
+
+            if (isHost) {
+                conn.send({
+                    type: 'init',
+                    level: currentLevel,
+                    cards: cards.map(c => ({ value: c.value, matched: c.matched })),
+                    pairs: matchedPairs,
+                    timer: timerSeconds,
+                    totalPairs: currentPairs
+                });
+                myTurn = true;
+                updateTurnUI();
+                showStatus('🎯 Sua vez!');
+            }
+
+            if (!isInitiator) {
+                myTurn = false;
+                updateTurnUI();
+                showStatus('🤝 Vez do seu amigo!');
+            }
+        }
+
+        function handleRemoteData(data) {
+            switch(data.type) {
+                case 'init':
+                    const config = LEVEL_CONFIG[data.level];
+                    currentPairs = data.totalPairs || config.pairs;
+                    currentLevel = data.level;
+                    
+                    gridEl.className = 'game-grid ' + config.gridClass;
+                    levelIndicator.textContent = config.label;
+                    totalPairsSpan.textContent = currentPairs;
+                    
+                    const deck = data.cards.map(c => ({ value: c.value, matched: c.matched, flipped: false, owner: null }));
+                    cards = deck;
+                    matchedPairs = data.pairs;
+                    timerSeconds = data.timer;
+                    timerSpan.textContent = String(timerSeconds).padStart(2, '0');
+                    renderGrid();
+                    pairsSpan.textContent = matchedPairs;
+                    myTurn = false;
+                    updateTurnUI();
+                    showStatus('🤝 Vez do seu amigo!');
+                    
+                    // Aplica timeouts se necessário (para single player)
+                    if (gameMode === 'single') {
+                        if (currentLevel === 'extremo' && config.moveInterval) {
+                            if (moveTimeout) clearTimeout(moveTimeout);
+                            moveTimeout = setTimeout(() => moveCards(), config.moveInterval);
+                        } else if (currentLevel === 'impossivel' && config.shuffleInterval) {
+                            if (shuffleTimeout) clearTimeout(shuffleTimeout);
+                            shuffleTimeout = setTimeout(() => shuffleUnmatched(), config.shuffleInterval);
+                        }
+                    }
+                    break;
+
+                case 'card_flip':
+                    const idx = data.index;
+                    if (cards[idx] && !cards[idx].flipped) {
+                        cards[idx].flipped = true;
+                        cards[idx].owner = data.player;
+                        flippedIndices.push(idx);
+                        renderGrid();
+                    }
+                    break;
+
+                case 'pair_found':
+                    matchedPairs = data.pairs;
+                    pairsSpan.textContent = matchedPairs;
+                    renderGrid();
+                    if (data.player !== myId) {
+                        showStatus(`👥 Amigo encontrou um par! (${matchedPairs}/${currentPairs})`);
+                    } else {
+                        showStatus('🎯 Continue!');
+                    }
+                    break;
+
+                case 'turn_change':
+                    myTurn = (data.turn === myId);
+                    updateTurnUI();
+                    if (!myTurn) {
+                        showStatus('🤝 Vez do seu amigo!');
+                    } else {
+                        showStatus('🎯 Sua vez!');
+                    }
+                    break;
+
+                case 'game_finished':
+                    gameFinished = true;
+                    stopTimer();
+                    clearLevelTimeouts();
+                    const winner = data.winner === myId ? 'Você' : 'Seu amigo';
+                    setTimeout(() => {
+                        alert(`🏆 ${winner} venceu! Tempo: ${data.tempo}s`);
+                    }, 100);
+                    break;
+
+                case 'reset_game':
+                    resetGame();
+                    break;
+            }
+        }
+
+        function disconnectPeer() {
+            if (connection) {
+                connection.close();
+                connection = null;
+            }
+            isConnected = false;
+            gameMode = 'single';
+            connectBtn.classList.remove('hidden');
+            disconnectBtn.classList.add('hidden');
+            onlineDot.className = 'online-dot';
+            onlineLabel.textContent = 'Online';
+            playersList.textContent = 'Você';
+            showStatus('🔌 Desconectado');
+            myTurn = true;
+            updateTurnUI();
+            initGame(currentLevel);
+        }
+
+        // ========== EVENTOS UI ==========
+        connectBtn.addEventListener('click', () => {
+            const targetId = friendIdInput.value.trim();
+            if (!targetId) {
+                showStatus('⚠️ Digite o ID do amigo');
+                return;
+            }
+            if (!peer) {
+                showStatus('⚠️ Aguarde inicialização...');
+                return;
+            }
+            showStatus('🔄 Conectando...');
+            const conn = peer.connect(targetId);
+            conn.on('open', () => {
+                handleConnection(conn, true);
+            });
+            conn.on('error', (err) => {
+                showStatus('❌ Erro ao conectar: ' + err.message);
+            });
+        });
+
+        disconnectBtn.addEventListener('click', disconnectPeer);
+
+        copyIdBtn.addEventListener('click', () => {
+            if (myId) {
+                navigator.clipboard.writeText(myId).then(() => {
+                    showStatus('✅ ID copiado!');
+                    setTimeout(() => showStatus(`✅ Seu ID: ${myId}`), 1500);
+                }).catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = myId;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    textarea.remove();
+                    showStatus('✅ ID copiado!');
+                });
+            }
+        });
+
+        document.querySelectorAll('.level-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (gameMode === 'multi') {
+                    if (!confirm('Modo multiplayer ativo. Deseja reiniciar em single player?')) return;
+                    disconnectPeer();
+                }
+                const level = this.dataset.level;
+                if (level === currentLevel) {
+                    resetGame();
+                } else {
+                    initGame(level);
+                }
+            });
+        });
+
+        resetBtn.addEventListener('click', resetGame);
+
+        // ========== INICIALIZAÇÃO ==========
+        initPeer();
+        initGame('extremo');
+        updateTurnUI();
+        showStatus('⚡ Aguardando conexão...');
+        connectBtn.disabled = true;
+
+        console.log('🎮 Jogo da Memória Multiplayer');
+        console.log('📋 Compartilhe seu ID com um amigo para jogar!');
+        console.log(`📊 Níveis: Fácil/Médio/Difícil = 8 pares | Impossível = 12 pares | Extremo = 16 pares`);
+        console.log('🔗 Compartilhe o link com seu amigo!');
+    })();
+</script>
+</body>
+</html>
